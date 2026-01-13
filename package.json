@@ -1,0 +1,50 @@
+{
+  "name": "aims-linnworks-ship",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "db:create": "ts-node src/scripts/create-database.ts",
+    "db:drop": "ts-node src/scripts/drop-database.ts",
+    "db:reset": "ts-node src/scripts/reset-database.ts",
+    "db:migrate": "ts-node src/database/migrations/migrate.ts",
+    "db:seed": "ts-node src/database/seeds/index.ts",
+    "db:setup": "npm run db:create && npm run db:migrate && npm run db:seed",
+    "db:fresh": "npm run db:reset"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.966.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "helmet": "^8.1.0",
+    "joi": "^18.0.2",
+    "multer": "^2.0.2",
+    "pdf-lib": "^1.17.1",
+    "pdf-parse": "^2.4.5",
+    "pg": "^8.16.3",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/morgan": "^1.9.10",
+    "@types/multer": "^2.0.0",
+    "@types/node": "^25.0.3",
+    "@types/pg": "^8.16.0",
+    "@types/uuid": "^10.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.51.0",
+    "@typescript-eslint/parser": "^8.51.0",
+    "eslint": "^9.39.2",
+    "nodemon": "^3.1.11",
+    "prettier": "^3.7.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}
