@@ -1,5 +1,5 @@
 import { PDFDocument } from 'pdf-lib';
-const pdfParse = require('pdf-parse');  
+import { PDFParse } from 'pdf-parse';
 
 export class PDFService {
   
@@ -44,7 +44,8 @@ export class PDFService {
   
   async extractText(pdfBuffer: Buffer): Promise<string> {
     try {
-      const data = await pdfParse(pdfBuffer);
+      const parser = new PDFParse({data: pdfBuffer});
+      const data = await parser.getText();
       return data.text;
     } catch (error: any) {
       throw new Error(`Failed to extract text: ${error.message}`);

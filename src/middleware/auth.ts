@@ -10,30 +10,39 @@ declare global {
     }
 }
 
-export const authenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const authenticate = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> => {
     try {
-        const authHeader = req.headers.authorization;
-        const authToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
-        
+        let authToken: string | undefined = req.body?.AuthorizationToken;
+
+        if (!authToken) {
+            const authHeader = req.headers.authorization;
+            if (authHeader?.startsWith("Bearer ")) {
+                authToken = authHeader.slice(7);
+            }
+        }
+
         console.log(`Authenticating request with token: ${authToken}`);
 
         if (!authToken) {
             res.status(401).json({
                 isError: true,
-                errorMessage: 'Authorization token is required'
+                errorMessage: "Authorization token is required",
             });
             return;
         }
 
         const user = await userRepository.findByAuthToken(authToken);
 
-
         if (!user || user.is_deleted) {
             res.status(401).json({
                 isError: true,
-                errorMessage: `Authorization failed for token ${authToken}`
+                errorMessage: "Authorization failed",
             });
-        return;
+            return;
         }
 
         req.user = user;
@@ -43,7 +52,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     } catch (error: any) {
         res.status(500).json({
             isError: true,
-            errorMessage: `Authentication error: ${error.message}`
+            errorMessage: `Authentication error: ${error.message}`,
         });
     }
-}
+};

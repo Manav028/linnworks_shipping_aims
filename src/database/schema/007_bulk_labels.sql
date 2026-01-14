@@ -7,9 +7,9 @@ CREATE TABLE IF NOT EXISTS bulk_label_uploads (
     original_file_size BIGINT,
     total_pages_in_pdf INT NOT NULL,
     upload_status VARCHAR(50) DEFAULT 'UPLOADED',
-    uploaded_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    uploaded_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     processing_start_date timestamp,
-    processing_end_date timestamp,
+    processing_end_date timestamp
 );
 
 CREATE TABLE IF NOT EXISTS split_label_pages (

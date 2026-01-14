@@ -2,18 +2,17 @@ import { ExtractedLabelInfo } from '../types/bulkLabel.types';
 
 export class TextExtractor {
   
-  extractTrackingNumber(text: string): string | null {
+extractTrackingNumber(text: string): string | null {
+  // Find pattern of 12 digits with any spacing
+  const fedexPattern = /(\d{4})\s*(\d{4})\s*(\d{4})/;
   
-  const fedexPattern = /\b\d{4}\s?\d{4}\s?\d{4}\b/;
-
   const match = text.match(fedexPattern);
   
-   if (match && match[1]) {
-    return match[1].trim();
+  if (match) {
+    return match[1] + match[2] + match[3]; // Returns: 887893003848
   }
 
   return null;
-  
 }
 
   extractOrderReference(text: string): string | null {

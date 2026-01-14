@@ -17,11 +17,11 @@ export const runSeeds = async (): Promise<void> => {
       throw new Error('Database connection failed');
     }
 
-    // await seedDefaultUser();
-    // await seedCourierServices();
-    // await seedConfigurationStages();
-    // await seedConfigurationItems();
-    // await seedServiceConfigItems();
+    await seedDefaultUser();
+    await seedCourierServices();
+    await seedConfigurationStages();
+    await seedConfigurationItems();
+    await seedServiceConfigItems();
     await seedServiceAllocateCustomer();
 
     console.log('All seeds completed successfully!');

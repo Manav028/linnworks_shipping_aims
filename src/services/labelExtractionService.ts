@@ -8,9 +8,11 @@ export class LabelExtractionService {
     try {
       // Extract text from PDF
       const text = await pdfService.extractText(pdfBuffer);
+      console.log(text);
       
       // Extract label information
       const info = textExtractor.extractLabelInfo(text);
+      console.log(textExtractor);
       
       console.log(`Extracted - Tracking: ${info.trackingNumber}, Ref: ${info.orderReference}, Confidence: ${info.confidence}%`);
       
