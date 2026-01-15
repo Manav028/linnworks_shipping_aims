@@ -124,7 +124,7 @@ export class PrepaidLabelPoolRepository extends BaseRepository<PrepaidLabelPool>
        WHERE user_id = $1`,
       [userId]
     );
-    
+
     const row = result.rows[0];
     return {
       total: parseInt(row.total) || 0,
@@ -143,5 +143,13 @@ export class PrepaidLabelPoolRepository extends BaseRepository<PrepaidLabelPool>
       []
     );
     return result.rowCount || 0;
+  }
+
+  async getSplitPage(splitPageId: string): Promise<any> {
+    const result = await this.executeQuery(
+      `SELECT * FROM split_label_pages WHERE split_page_id = $1`,
+      [splitPageId]
+    );
+    return result.rows[0] || null;
   }
 }
