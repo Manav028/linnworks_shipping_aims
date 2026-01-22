@@ -1,0 +1,23 @@
+export { BaseRepository } from './BaseRepository';
+export { UserRepository } from './UserRepository';
+export { BulkLabelRepository } from './BulkLabelRepository';
+export { PrepaidLabelPoolRepository } from './PrepaidLabelPoolRepository';
+export { ConsignmentRepository } from './ConsignmentRepository';
+export { SplitLabelPageRepository } from './SplitLabelPageRepository';
+export { ConfigurationRepository } from './ConfigurationRepository';
+export { CourierServiceRepository } from './CourierServiceRepository';
+import { UserRepository } from './UserRepository';
+import { BulkLabelRepository } from './BulkLabelRepository';
+import { PrepaidLabelPoolRepository } from './PrepaidLabelPoolRepository';
+import { ConsignmentRepository } from './ConsignmentRepository';
+import { SplitLabelPageRepository } from './SplitLabelPageRepository';
+import { ConfigurationRepository } from './ConfigurationRepository';
+import { CourierServiceRepository } from './CourierServiceRepository';
+export declare const userRepository: UserRepository;
+export declare const bulkLabelRepository: BulkLabelRepository;
+export declare const prepaidLabelPoolRepository: PrepaidLabelPoolRepository;
+export declare const consignmentRepository: ConsignmentRepository;
+export declare const splitLabelPageRepository: SplitLabelPageRepository;
+export declare const configurationRepository: ConfigurationRepository;
+export declare const courierServiceRepository: CourierServiceRepository;
+//# sourceMappingURL=index.d.ts.map

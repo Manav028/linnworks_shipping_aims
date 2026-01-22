@@ -42,6 +42,7 @@ export interface SplitLabelPage extends QueryResultRow {
   split_page_id: string;
   bulk_upload_id: string;
   file_path: string | null;
+  png_file_path: string | null;
   page_number: number;
   tracking_number: string | null;
   order_reference: string | null;

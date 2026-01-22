@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS split_label_pages (
     split_page_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     bulk_upload_id UUID NOT NULL REFERENCES bulk_label_uploads(bulk_upload_id) ON DELETE CASCADE,
     file_path VARCHAR(500),  -- S3 path for individual label
+    png_file_path VARCHAR(500),  -- S3 path for PNG version
     page_number INT NOT NULL,
     tracking_number VARCHAR(100),
     order_reference VARCHAR(100),

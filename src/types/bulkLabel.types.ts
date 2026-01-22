@@ -9,6 +9,12 @@ export interface UploadBulkLabelsRequest {
   };
 }
 
+export interface ProcessedLabel {
+  info: ExtractedLabelInfo;
+  pdfBuffer: Buffer;
+  pngBuffer: Buffer;
+}
+
 export interface UploadBulkLabelsResponse {
   isError: boolean;
   errorMessage?: string;

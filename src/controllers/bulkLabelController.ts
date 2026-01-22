@@ -103,33 +103,78 @@ export class BulkLabelController {
   ): Promise<void> {
     try {
       console.log(`Starting background processing for ${bulkUploadId}`);
-      
+
       await bulkLabelRepository.setProcessingStart(bulkUploadId);
 
       const splitPDFs = await pdfService.splitPDF(pdfBuffer);
       console.log(`Split into ${splitPDFs.length} pages`);
+
+      let successCount = 0;
+      let failCount = 0;
 
       for (let i = 0; i < splitPDFs.length; i++) {
         const pageNumber = i + 1;
         const pagePDF = splitPDFs[i];
 
         try {
-          const extractedInfo = await labelExtractionService.processLabel(pagePDF);
+          console.log(`Processing page ${pageNumber}/${splitPDFs.length}...`);
 
+          // Extract text and get label information
+          const extractedInfo = await labelExtractionService.processLabel(
+            pagePDF,
+            pageNumber
+          );
+
+          // Upload PDF to S3
           const labelS3Path = await s3Service.uploadSplitLabel(
             pagePDF,
             bulkUploadId,
             pageNumber
           );
 
+          // Convert to PNG and upload
+          let pngS3Path: string | undefined;
+          let pngFileSize: number | undefined;
+
+          try {
+            const pngBuffer = await pdfService.convertPageToPNG(pagePDF, 1);
+            pngS3Path = await s3Service.uploadLabelPNG(
+              pngBuffer,
+              bulkUploadId,
+              pageNumber,
+              {
+                trackingNumber: extractedInfo.trackingNumber || '',
+                orderReference: extractedInfo.orderReference || '',
+                confidence: extractedInfo.confidence.toString(),
+              }
+            );
+            pngFileSize = pngBuffer.length;
+            console.log(
+              `✓ Page ${pageNumber}: PNG created (${(pngFileSize / 1024).toFixed(
+                2
+              )} KB)`
+            );
+          } catch (pngError) {
+            const pngErrorMessage =
+              pngError instanceof Error ? pngError.message : 'Unknown error';
+            console.error(
+              `⚠ Page ${pageNumber}: PNG conversion failed:`,
+              pngErrorMessage
+            );
+            // Continue without PNG - we still have the PDF
+          }
+
+          // Create split page record
           const splitPage = await splitLabelPageRepository.create({
             bulkUploadId: bulkUploadId,
             filePath: labelS3Path,
+            pngFilePath: pngS3Path,
             pageNumber: pageNumber,
             trackingNumber: extractedInfo.trackingNumber,
-            orderReference: extractedInfo.orderReference
+            orderReference: extractedInfo.orderReference,
           });
 
+          // Add to pool if we have required information
           if (extractedInfo.trackingNumber && extractedInfo.orderReference) {
             await prepaidLabelPoolRepository.create({
               bulkUploadId: bulkUploadId,
@@ -137,27 +182,38 @@ export class BulkLabelController {
               orderReference: extractedInfo.orderReference,
               trackingNumber: extractedInfo.trackingNumber,
               courierServiceId: courierServiceId,
-              userId: userId
+              userId: userId,
             });
 
-            console.log(`Added to pool: ${extractedInfo.orderReference} → ${extractedInfo.trackingNumber}`);
+            successCount++;
+            console.log(
+              `✓ Page ${pageNumber}: Added to pool - ${extractedInfo.orderReference} → ${extractedInfo.trackingNumber} (${extractedInfo.confidence}% confidence)`
+            );
           } else {
-            console.log(`Page ${pageNumber}: Missing tracking or reference (Confidence: ${extractedInfo.confidence}%)`);
+            failCount++;
+            console.log(
+              `⚠ Page ${pageNumber}: Missing required data (Tracking: ${!!extractedInfo.trackingNumber}, Ref: ${!!extractedInfo.orderReference}, Confidence: ${extractedInfo.confidence}%)`
+            );
           }
-
-        } catch (error: any) {
-          console.error(`Failed to process page ${pageNumber}:`, error.message);
+        } catch (error: unknown) {
+          failCount++;
+          const errorMessage =
+            error instanceof Error ? error.message : 'Unknown error';
+          console.error(`✗ Page ${pageNumber}: Processing failed:`, errorMessage);
         }
       }
 
       await bulkLabelRepository.setProcessingEnd(bulkUploadId, 'COMPLETED');
-      console.log(`Processing completed for ${bulkUploadId}`);
-
-    } catch (error: any) {
-      console.error(`Processing failed for ${bulkUploadId}:`, error);
+      console.log(
+        `✓ Processing completed for ${bulkUploadId}: ${successCount} successful, ${failCount} failed`
+      );
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`✗ Processing failed for ${bulkUploadId}:`, errorMessage);
       await bulkLabelRepository.setProcessingEnd(bulkUploadId, 'FAILED');
     }
   }
+
 
   /**
    * Get Processing Status

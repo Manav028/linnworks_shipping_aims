@@ -9,6 +9,7 @@ export class SplitLabelPageRepository extends BaseRepository<SplitLabelPage> {
   async create(data: {
     bulkUploadId: string;
     filePath: string;
+    pngFilePath?: string;
     pageNumber: number;
     trackingNumber: string;
     orderReference: string;
@@ -17,15 +18,17 @@ export class SplitLabelPageRepository extends BaseRepository<SplitLabelPage> {
       `INSERT INTO split_label_pages (
         bulk_upload_id,
         file_path,
+        png_file_path,
         page_number,
         tracking_number,
         order_reference,
         split_status
-      ) VALUES ($1, $2, $3, $4, $5, 'EXTRACTED')
+      ) VALUES ($1, $2, $3, $4, $5, $6, 'EXTRACTED')
       RETURNING *`,
       [
         data.bulkUploadId,
         data.filePath,
+        data.pngFilePath || null,
         data.pageNumber,
         data.trackingNumber,
         data.orderReference
