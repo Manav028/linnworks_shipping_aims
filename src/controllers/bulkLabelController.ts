@@ -175,7 +175,7 @@ export class BulkLabelController {
           });
 
           // Add to pool if we have required information
-          if (extractedInfo.trackingNumber && extractedInfo.orderReference) {
+          if (extractedInfo.trackingNumber && extractedInfo.orderReference && pngS3Path) {
             await prepaidLabelPoolRepository.create({
               bulkUploadId: bulkUploadId,
               splitPageId: splitPage.split_page_id,

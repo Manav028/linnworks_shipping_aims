@@ -46,4 +46,10 @@ router.post(
   asyncHandler(setupController.userAvailableServices.bind(setupController))
 );
 
+router.post(
+  '/ExtendedPropertyMapping',
+  authenticate,
+  asyncHandler(setupController.ExtendedPropertyMapping.bind(setupController))
+);
+
 export default router;

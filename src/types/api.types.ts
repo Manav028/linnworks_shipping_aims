@@ -101,5 +101,47 @@ export interface UserAvailableServicesResponse extends BaseResponse {
   Services?: CourierServiceDetail[];
 }
 
+export interface Manifest {
+  manifest_id: string;
+  user_id: string;
+  manifest_reference: string;
+  manifest_date: Date;
+  total_consignments: number;
+  manifest_status: ManifestStatus;
+  pdf_s3_path: string | null;
+  printed_date: Date | null;
+  last_modified_date: Date;
+}
 
+export interface ManifestConsignment {
+  manifest_consignment_id: string;
+  manifest_id: string;
+  consignment_id: string;
+  order_reference: string | null;
+  added_date: Date;
+}
 
+export enum ManifestStatus {
+  CREATED = 'CREATED',
+  SUBMITTED = 'SUBMITTED',
+  PRINTED = 'PRINTED'
+}
+
+export interface CreateManifestDTO {
+  userId: string;
+  manifestReference: string;
+  orderIds: string[]; 
+}
+
+export interface ManifestSummary {
+  manifestId: string;
+  manifestReference: string;
+  manifestDate: Date;
+  totalConsignments: number;
+  status: ManifestStatus;
+  consignments: {
+    consignmentId: string;
+    orderReference: string;
+    trackingNumber: string;
+  }[];
+}

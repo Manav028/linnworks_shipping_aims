@@ -1,20 +1,21 @@
-// src/services/pdfService.ts - HIGH QUALITY FOR SCANNABLE BARCODES
 import { PDFDocument } from 'pdf-lib';
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf';
-import { Canvas, createCanvas } from 'canvas';
 import { Worker } from 'worker_threads';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import path from 'path';
+import fs from 'fs/promises';
+import os from 'os';
+import crypto from 'crypto';
 
-// Disable worker in main thread
-pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+const execAsync = promisify(exec);
 
 const WORKER_PATH = path.resolve(
   process.cwd(),
   'dist/workers/pdfWorker.js'
 );
 
-console.log('🔧 [PDF Service] Worker path:', WORKER_PATH);
-console.log('🔧 [PDF Service] __dirname:', __dirname);
+console.log('[PDF Service] Worker path:', WORKER_PATH);
+console.log('[PDF Service] Using Direct Poppler (pdftoppm) - MAXIMUM QUALITY');
 
 interface WorkerResult {
   success: boolean;
@@ -25,6 +26,8 @@ interface WorkerResult {
 export class PDFService {
   private readonly workerTimeoutMs: number;
   private readonly renderScale: number;
+  private readonly tempDir: string;
+  private readonly popplerPath: string;
 
   constructor() {
     this.workerTimeoutMs = process.env.PDF_WORKER_TIMEOUT_MS
@@ -33,9 +36,53 @@ export class PDFService {
     this.renderScale = process.env.PDF_RENDER_SCALE
       ? parseFloat(process.env.PDF_RENDER_SCALE)
       : 4.0;
-    console.log(`📁 [PDF Service] Initialized with scale: ${this.renderScale}x`);
+    this.tempDir = os.tmpdir();
+
+    // Auto-detect Poppler path based on OS
+    this.popplerPath = this.detectPopplerPath();
+
+    const dpi = Math.round(this.renderScale * 72);
+    console.log(`[PDF Service] Initialized with ${dpi} DPI`);
+    console.log(`[PDF Service] Poppler path: ${this.popplerPath}`);
   }
 
+  /**
+   * Detect Poppler installation path
+   */
+  private detectPopplerPath(): string {
+    // Windows: Check common installation paths
+    if (process.platform === 'win32') {
+      const possiblePaths = [
+        'C:\\Users\\manav\\Downloads\\Release-25.11.0-0\\poppler-25.11.0\\Library\\bin\\pdftoppm.exe',
+        'C:\\Program Files\\poppler\\Library\\bin\\pdftoppm.exe',
+        'C:\\Program Files (x86)\\poppler\\Library\\bin\\pdftoppm.exe',
+        'C:\\poppler\\Library\\bin\\pdftoppm.exe',
+        path.join(process.env.ProgramFiles || 'C:\\Program Files', 'poppler', 'Library', 'bin', 'pdftoppm.exe'),
+      ];
+
+      return possiblePaths[0];
+    }
+
+    return 'pdftoppm';
+  }
+
+  /**
+   * Verify Poppler is installed
+   */
+  async verifyPopplerInstalled(): Promise<boolean> {
+    try {
+      const { stdout } = await execAsync(`${this.popplerPath} -v`);
+      console.log(`Poppler version: ${stdout.trim()}`);
+      return true;
+    } catch (error) {
+      console.error('Poppler not found! Install with: choco install poppler');
+      return false;
+    }
+  }
+
+  /**
+   * Get page count from PDF
+   */
   async getPageCount(pdfBuffer: Buffer): Promise<number> {
     try {
       const pdfDoc = await PDFDocument.load(pdfBuffer);
@@ -46,6 +93,9 @@ export class PDFService {
     }
   }
 
+  /**
+   * Split PDF into individual pages
+   */
   async splitPDF(pdfBuffer: Buffer): Promise<Buffer[]> {
     try {
       const pdfDoc = await PDFDocument.load(pdfBuffer);
@@ -75,12 +125,14 @@ export class PDFService {
     }
   }
 
+  /**
+   * Extract text using worker thread (pdfjs-dist)
+   */
   async extractText(pdfBuffer: Buffer): Promise<string> {
     return new Promise<string>((resolve, reject) => {
       let worker: Worker;
-      
+
       try {
-        console.log(`🔧 Creating worker from: ${WORKER_PATH}`);
         worker = new Worker(WORKER_PATH, {
           workerData: {
             pdfBuffer,
@@ -89,8 +141,7 @@ export class PDFService {
         });
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.error(`❌ Worker creation failed:`, errorMessage);
-        console.error(`❌ Attempted path: ${WORKER_PATH}`);
+        console.error(`Worker creation failed:`, errorMessage);
         reject(new Error(`Failed to create worker: ${errorMessage}`));
         return;
       }
@@ -111,53 +162,6 @@ export class PDFService {
 
       worker.on('error', (error: Error) => {
         clearTimeout(timeout);
-        console.error(`❌ Worker error:`, error.message);
-        reject(new Error(`Worker error: ${error.message}`));
-      });
-
-      worker.on('exit', (code: number) => {
-        clearTimeout(timeout);
-        if (code !== 0) {
-          reject(new Error(`Worker stopped with exit code ${code}`));
-        }
-      });
-    });
-  }
-
-  async extractTextFromPage(pdfBuffer: Buffer, pageNumber: number): Promise<string> {
-    return new Promise<string>((resolve, reject) => {
-      let worker: Worker;
-      
-      try {
-        worker = new Worker(WORKER_PATH, {
-          workerData: {
-            pdfBuffer,
-            taskType: 'extractTextFromPage',
-            pageNumber,
-          },
-        });
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        reject(new Error(`Failed to create worker: ${errorMessage}`));
-        return;
-      }
-
-      const timeout = setTimeout(() => {
-        worker.terminate();
-        reject(new Error(`PDF page text extraction timeout (${this.workerTimeoutMs}ms)`));
-      }, this.workerTimeoutMs);
-
-      worker.on('message', (result: WorkerResult) => {
-        clearTimeout(timeout);
-        if (result.success && result.text) {
-          resolve(result.text);
-        } else {
-          reject(new Error(result.error || 'Text extraction failed'));
-        }
-      });
-
-      worker.on('error', (error: Error) => {
-        clearTimeout(timeout);
         reject(new Error(`Worker error: ${error.message}`));
       });
 
@@ -171,85 +175,73 @@ export class PDFService {
   }
 
   /**
-   * Convert PDF page to PNG with MAXIMUM QUALITY for scannable barcodes
-   * Optimized for FedEx shipping labels
+   * Convert PDF page to PNG using Direct Poppler (pdftoppm)
+   * MAXIMUM QUALITY - Pixel-perfect reproduction
    */
   async convertPageToPNG(
     pdfBuffer: Buffer,
     pageNumber: number,
     scale?: number
   ): Promise<Buffer> {
+    const renderScale = scale || this.renderScale;
+    const dpi = Math.round(renderScale * 72);
+
+    const tempId = crypto.randomUUID();
+    const tempPdfPath = path.join(this.tempDir, `${tempId}.pdf`);
+    const tempPngPrefix = path.join(this.tempDir, tempId);
+
     try {
-      const renderScale = scale || this.renderScale;
-      const uint8Array = new Uint8Array(pdfBuffer);
+      // Write PDF to temp file
+      await fs.writeFile(tempPdfPath, pdfBuffer);
 
-      // Load PDF with optimal settings for barcode/label rendering
-      const loadingTask = pdfjsLib.getDocument({
-        data: uint8Array,
-        useWorkerFetch: false,
-        isEvalSupported: false,
-        useSystemFonts: true,
-        disableFontFace: false, // Enable embedded fonts
-        verbosity: 0, // Suppress warnings
-        cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/cmaps/',
-        cMapPacked: true,
-        standardFontDataUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/standard_fonts/',
-      });
-
-      const pdfDocument = await loadingTask.promise;
-
-      if (pageNumber < 1 || pageNumber > pdfDocument.numPages) {
-        throw new Error(
-          `Invalid page number: ${pageNumber}. PDF has ${pdfDocument.numPages} pages.`
-        );
+      if (process.platform === 'win32') {
+        await new Promise(res => setTimeout(res, 50));
       }
 
-      const page = await pdfDocument.getPage(pageNumber);
-      
-      // Get original dimensions and apply scale
-      const viewport = page.getViewport({ scale: renderScale });
+      console.log(`Converting page ${pageNumber} with pdftoppm at ${dpi} DPI...`);
 
-      // Create canvas with exact dimensions (no rounding to prevent distortion)
-      const canvas = createCanvas(
-        Math.ceil(viewport.width),
-        Math.ceil(viewport.height)
-      );
-      const context = canvas.getContext('2d');
+      // Build pdftoppm command
+      // -png: Output format PNG
+      // -f: First page to convert
+      // -l: Last page to convert
+      // -r: Resolution (DPI)
+      // -singlefile: Don't add page number to output filename
+      const command = `${this.popplerPath} -png -f ${pageNumber} -l ${pageNumber} -r ${dpi} -singlefile "${tempPdfPath}" "${tempPngPrefix}"`;
 
-      // CRITICAL: Disable image smoothing for sharp barcodes
-      context.imageSmoothingEnabled = false;
-      
-      // Fill white background (important for transparent PDFs)
-      context.fillStyle = 'white';
-      context.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Render PDF page with maximum quality settings
-      const renderContext = {
-        canvasContext: context as any,
-        viewport: viewport,
-        intent: 'print', // Use print quality for best results
-        renderInteractiveForms: false,
-        annotationMode: 0, // Disable annotations
-        enableWebGL: false,
-      };
-
-      await page.render(renderContext).promise;
-
-      // Convert to PNG with NO compression for maximum quality
-      const pngBuffer = canvas.toBuffer('image/png', {
-        compressionLevel: 0, // NO compression = maximum quality
-        filters: Canvas.PNG_FILTER_NONE, // No filters
-        resolution: Math.round(renderScale * 72), // DPI metadata
+      // Execute pdftoppm
+      const { stdout, stderr } = await execAsync(command, {
+        maxBuffer: 50 * 1024 * 1024, // 50MB buffer for large PNGs
       });
 
+      if (stderr && !stderr.includes('Syntax Warning')) {
+        console.warn(`pdftoppm warning: ${stderr}`);
+      }
+
+      // Read the generated PNG file
+      const pngPath = `${tempPngPrefix}.png`;
+
+      // Verify file exists
+      try {
+        await fs.access(pngPath);
+      } catch {
+        throw new Error(`PNG file not created: ${pngPath}`);
+      }
+
+      const pngBuffer = await fs.readFile(pngPath);
       const sizeKB = (pngBuffer.length / 1024).toFixed(2);
-      const dpi = Math.round(renderScale * 72);
+
       console.log(
-        `✅ Converted page ${pageNumber} to PNG: ${sizeKB} KB, ${canvas.width}x${canvas.height}px, ${dpi} DPI`
+        `Converted page ${pageNumber} to PNG: ${sizeKB} KB, ${dpi} DPI (pdftoppm)`
       );
+
+      // Cleanup temp files
+      await this.cleanupTempFiles([tempPdfPath, pngPath]);
 
       return pngBuffer;
     } catch (error) {
+      // Cleanup on error
+      await this.cleanupTempFiles([tempPdfPath, `${tempPngPrefix}.png`]);
+
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       throw new Error(`Failed to convert PDF to PNG: ${errorMessage}`);
     }
@@ -260,10 +252,16 @@ export class PDFService {
    */
   async convertToPNG(pdfBuffer: Buffer, scale?: number): Promise<Buffer[]> {
     try {
+      // Verify Poppler is installed
+      const isInstalled = await this.verifyPopplerInstalled();
+      if (!isInstalled) {
+        throw new Error('Poppler (pdftoppm) is not installed. Please install: choco install poppler');
+      }
+
       const pageCount = await this.getPageCount(pdfBuffer);
       const pngBuffers: Buffer[] = [];
 
-      console.log(`Converting ${pageCount} pages to PNG...`);
+      console.log(`Converting ${pageCount} pages to PNG using pdftoppm...`);
 
       for (let i = 1; i <= pageCount; i++) {
         const pngBuffer = await this.convertPageToPNG(pdfBuffer, i, scale);
@@ -282,6 +280,22 @@ export class PDFService {
     }
   }
 
+  /**
+   * Cleanup temporary files
+   */
+  private async cleanupTempFiles(files: string[]): Promise<void> {
+    for (const file of files) {
+      try {
+        await fs.unlink(file);
+      } catch {
+        // Ignore errors - file might not exist
+      }
+    }
+  }
+
+  /**
+   * Validate PDF file
+   */
   async validatePDF(pdfBuffer: Buffer): Promise<boolean> {
     try {
       await PDFDocument.load(pdfBuffer);
@@ -291,6 +305,9 @@ export class PDFService {
     }
   }
 
+  /**
+   * Get PDF metadata
+   */
   async getMetadata(pdfBuffer: Buffer): Promise<{
     pageCount: number;
     fileSize: number;

@@ -14,20 +14,23 @@ import {
 } from '../types/consignment.types';
 
 export class ConsignmentController {
-  
+
   async generateLabel(req: Request, res: Response): Promise<void> {
     try {
       const request = req.body as GenerateLabelRequest;
       const user = req.user;
-      
+
       console.log(`GenerateLabel request for order: ${request.OrderId}`);
 
       //Check if prepaid label exists
       const prepaidLabel = await prepaidLabelPoolRepository.findAvailableByOrderRef(
-        request.OrderId+'',
-        request.ServiceId,
+        request.OrderId + '',
         user.user_id
       );
+
+      console.log(`Prepaid label lookup complete for order: ${request.OrderId}`);
+      console.log(`Prepaid label found: ${request.ServiceId}`);
+      console.log(`User ID: ${user.user_id}`);
 
       // 3a. IF NO LABEL FOUND - Return error
       if (!prepaidLabel) {
@@ -60,15 +63,15 @@ export class ConsignmentController {
       console.log(`Found prepaid label: ${prepaidLabel.tracking_number}`);
 
       const result = await transaction(async (client) => {
-        
+
         const claimResult = await client.query(
           `UPDATE prepaid_label_pool 
-           SET label_status = 'CLAIMED',
-               claimed_date = CURRENT_TIMESTAMP,
-               claimed_by_order_id = $1
-           WHERE pool_label_id = $2
-           AND label_status = 'AVAILABLE'
-           RETURNING *`,
+            SET label_status = 'CLAIMED',
+                claimed_date = CURRENT_TIMESTAMP,
+                claimed_by_order_id = $1
+            WHERE pool_label_id = $2
+            AND label_status = 'AVAILABLE'
+            RETURNING *`,
           [request.OrderId, prepaidLabel.pool_label_id]
         );
 
@@ -80,33 +83,33 @@ export class ConsignmentController {
 
         const consignmentResult = await client.query(
           `INSERT INTO consignments (
-            consignment_id,
-            user_id,
-            courier_service_id,
-            pool_label_id,
-            order_reference,
-            linnworks_order_id,
-            lead_tracking_number,
-            recipient_name,
-            recipient_company_name,
-            address_line1,
-            address_line2,
-            address_line3,
-            town,
-            region,
-            country_code,
-            postalcode,
-            recipient_email,
-            recipient_phone,
-            consignment_status
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 'LABEL_ASSIGNED')
-          RETURNING *`,
+              consignment_id,
+              user_id,
+              service_unique_id,
+              pool_label_id,
+              order_reference,
+              linnworks_order_id,
+              lead_tracking_number,
+              recipient_name,
+              recipient_company_name,
+              address_line1,
+              address_line2,
+              address_line3,
+              town,
+              region,
+              country_code,
+              postalcode,
+              recipient_email,
+              recipient_phone,
+              consignment_status
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 'LABEL_ASSIGNED')
+            RETURNING *`,
           [
             uuidv4(),
             user.user_id,
             request.ServiceId,
             prepaidLabel.pool_label_id,
-            request.OrderId+'',
+            request.OrderId + '',
             request.OrderId,
             prepaidLabel.tracking_number,
             request.Name,
@@ -130,10 +133,10 @@ export class ConsignmentController {
           for (const prop of request.OrderExtendedProperties) {
             await client.query(
               `INSERT INTO order_extended_properties (
-                consignment_id,
-                property_name,
-                property_value
-              ) VALUES ($1, $2, $3)`,
+                  consignment_id,
+                  property_name,
+                  property_value
+                ) VALUES ($1, $2, $3)`,
               [consignment.consignment_id, prop.Name, prop.Value]
             );
           }
@@ -148,7 +151,7 @@ export class ConsignmentController {
 
         const splitPage = splitPageResult.rows[0];
 
-        if (!splitPage?.file_path) {
+        if (!splitPage?.png_file_path) {
           throw new Error('Label file not found in storage');
         }
 
@@ -156,31 +159,31 @@ export class ConsignmentController {
         const packageResponses: PackageResponse[] = [];
 
         for (const pkg of request.Packages) {
-          //Create Package Record
+          //Create Package Recordfile_path
           const packageResult = await client.query(
             `INSERT INTO consignment_packages (
-              package_id,
-              consignment_id,
-              sequence_number,
-              tracking_number,
-              label_width,
-              label_height,
-              png_label_s3_path,
-              package_width,
-              package_height,
-              package_depth,
-              package_weight,
-              package_format
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-            RETURNING *`,
+                package_id,
+                consignment_id,
+                sequence_number,
+                tracking_number,
+                label_width,
+                label_height,
+                png_label_s3_path,
+                package_width,
+                package_height,
+                package_depth,
+                package_weight,
+                package_format
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+              RETURNING *`,
             [
               uuidv4(),
               consignment.consignment_id,
               pkg.SequenceNumber,
               prepaidLabel.tracking_number,
-              4, 
-              6, 
-              splitPage.file_path, 
+              4,
+              6,
+              splitPage.png_file_path,
               pkg.PackageWidth,
               pkg.PackageHeight,
               pkg.PackageDepth,
@@ -195,11 +198,11 @@ export class ConsignmentController {
           // 5b. Store Package Documentation (the label PDF)
           await client.query(
             `INSERT INTO package_documentation (
-              package_id,
-              document_type,
-              document_name,
-              pdf_s3_path
-            ) VALUES ($1, $2, $3, $4)`,
+                package_id,
+                document_type,
+                document_name,
+                pdf_s3_path
+              ) VALUES ($1, $2, $3, $4)`,
             [
               packageRecord.package_id,
               'SHIPPING_LABEL',
@@ -214,19 +217,19 @@ export class ConsignmentController {
             for (const item of pkg.Items) {
               const itemResult = await client.query(
                 `INSERT INTO package_items (
-                  item_id,
-                  package_id,
-                  item_name,
-                  product_code,
-                  quantity,
-                  unit_value,
-                  total_value,
-                  unit_weight,
-                  height,
-                  width,
-                  length
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-                RETURNING *`,
+                    item_id,
+                    package_id,
+                    item_name,
+                    product_code,
+                    quantity,
+                    unit_value,
+                    total_value,
+                    unit_weight,
+                    height,
+                    width,
+                    length
+                  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                  RETURNING *`,
                 [
                   uuidv4(),
                   packageRecord.package_id,
@@ -234,7 +237,7 @@ export class ConsignmentController {
                   item.ProductCode,
                   item.Quantity,
                   item.UnitValue,
-                  item.UnitValue * item.Quantity, 
+                  item.UnitValue * item.Quantity,
                   item.UnitWeight,
                   item.Height || null,
                   item.Width || null,
@@ -250,10 +253,10 @@ export class ConsignmentController {
                 for (const prop of item.ExtendedProperties) {
                   await client.query(
                     `INSERT INTO item_extended_properties (
-                      item_id,
-                      property_name,
-                      property_value
-                    ) VALUES ($1, $2, $3)`,
+                        item_id,
+                        property_name,
+                        property_value
+                      ) VALUES ($1, $2, $3)`,
                     [itemRecord.item_id, prop.Name, prop.Value]
                   );
                 }
@@ -263,7 +266,7 @@ export class ConsignmentController {
           }
 
           // Download label from S3 for response
-          const labelStream = await s3Service.getFileStream(splitPage.file_path);
+          const labelStream = await s3Service.getFileStream(splitPage.png_file_path);
           const labelBuffer = await this.streamToBuffer(labelStream);
           const labelBase64 = labelBuffer.toString('base64');
 
@@ -289,21 +292,21 @@ export class ConsignmentController {
         IsError: false,
         ErrorMessage: '',
         LeadTrackingNumber: prepaidLabel.tracking_number,
-        Cost: 0, // Already paid
+        Cost: 0,
         Currency: 'GBP',
         Package: result.packages
       } as GenerateLabelResponse);
 
-      console.log(`✅ Label generated successfully for order ${request.OrderId}`);
-      console.log(`📊 Summary: 
-        - Consignment: ${result.consignment.consignment_id}
-        - Packages: ${result.packages.length}
-        - Order Properties: ${request.OrderExtendedProperties?.length || 0}
-        - Items: ${request.Packages.reduce((sum, p) => sum + (p.Items?.length || 0), 0)}
-      `);
+      console.log(`Label generated successfully for order ${request.OrderId}`);
+      console.log(`Summary: 
+          - Consignment: ${result.consignment.consignment_id}
+          - Packages: ${result.packages.length}
+          - Order Properties: ${request.OrderExtendedProperties?.length || 0}
+          - Items: ${request.Packages.reduce((sum, p) => sum + (p.Items?.length || 0), 0)}
+        `);
 
     } catch (error: any) {
-      console.error('❌ GenerateLabel error:', error);
+      console.error('GenerateLabel error:', error);
       res.json({
         IsError: true,
         ErrorMessage: `Unhandled error: ${error.message}`,
@@ -323,7 +326,7 @@ export class ConsignmentController {
     try {
       const { AuthorizationToken, OrderReference } = req.body;
       const user = req.user;
-      
+
       // Find consignment
       const consignment = await consignmentRepository.findByOrderReference(
         OrderReference,
@@ -342,10 +345,10 @@ export class ConsignmentController {
         // Update consignment status
         await client.query(
           `UPDATE consignments 
-           SET consignment_status = 'CANCELLED',
-               cancelled_date = CURRENT_TIMESTAMP,
-               last_modified_date = CURRENT_TIMESTAMP
-           WHERE consignment_id = $1`,
+            SET consignment_status = 'CANCELLED',
+                cancelled_date = CURRENT_TIMESTAMP,
+                last_modified_date = CURRENT_TIMESTAMP
+            WHERE consignment_id = $1`,
           [consignment.consignment_id]
         );
 
@@ -353,13 +356,13 @@ export class ConsignmentController {
         if (consignment.pool_label_id) {
           await client.query(
             `UPDATE prepaid_label_pool 
-             SET label_status = 'AVAILABLE',
-                 claimed_date = NULL,
-                 claimed_by_order_id = NULL
-             WHERE pool_label_id = $1`,
+              SET label_status = 'AVAILABLE',
+                  claimed_date = NULL,
+                  claimed_by_order_id = NULL
+              WHERE pool_label_id = $1`,
             [consignment.pool_label_id]
           );
-          console.log(`🔓 Released label ${consignment.pool_label_id} back to pool`);
+          console.log(`Released label ${consignment.pool_label_id} back to pool`);
         }
       });
 
@@ -368,14 +371,56 @@ export class ConsignmentController {
         ErrorMessage: ''
       });
 
-      console.log(`✅ Cancelled order ${OrderReference}`);
+      console.log(`Cancelled order ${OrderReference}`);
 
-    } catch (error: any) {
-      console.error('❌ Cancel label error:', error);
+    }
+     catch (error: any) {
+      console.error('Cancel label error:', error);
       res.json({
         IsError: true,
         ErrorMessage: `Cancel failed: ${error.message}`
       });
+    }
+  }
+
+  async getQuote(req: Request, res: Response): Promise<void> {
+    try {
+      res.json({
+        "QuoteItems": [
+          {
+            "ServiceName": "FedEx Ground",
+            "ServiceCode": "FEDEX_GROUND",
+            "ServiceId": "0936e692-9543-442f-b3ce-7766e1ad83ef",
+            "ServiceTag": "Ground",
+            "CollectionDate": "/Date(1565283600000)/",
+            "EstimatedDeliveryDate": "/Date(1565370000000)/",
+            "Cost": 0,
+            "Tax": 0,
+            "TotalCost": 0,
+            "Currency": "GBP",
+            "PropertyItem": [
+              {
+                "Title": "PropertyName",
+                "Value": "PropertyValue123"
+              }
+            ],
+            "Options": [
+              {
+                "OptionName": "OptionName",
+                "OptionValue": "OptionValue123"
+              }
+            ]
+          }
+        ],
+        "IsError": false,
+        "ErrorMessage": null
+      });
+    }
+    catch (error: any) { 
+      res.json({
+        IsError: true,
+        ErrorMessage: `GetQuote failed: ${error.message}`
+      })
     }
   }
 
@@ -388,6 +433,7 @@ export class ConsignmentController {
       stream.on('error', reject);
     });
   }
+
 }
 
 export const consignmentController = new ConsignmentController();

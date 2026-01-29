@@ -119,6 +119,14 @@ export interface Manifest extends QueryResultRow {
   last_modified_date: Date;
 }
 
+export interface ManifestConsignment extends QueryResultRow {
+  manifest_consignment_id: string;
+  manifest_id: string;
+  consignment_id: string;
+  order_reference: string | null;
+  added_date: Date;
+}
+
 export interface ConfigurationStage extends QueryResultRow {
   config_stage_id: number;
   stage_name: string;
@@ -221,3 +229,22 @@ export interface CreateConsignmentDTO extends QueryResultRow {
     phone?: string;
   };
 }   
+
+export interface CreateManifestDTO {
+  userId: string;
+  manifestReference: string;
+  orderIds: string[]; // Array of OrderReferences
+}
+
+export interface ManifestSummary {
+  manifestId: string;
+  manifestReference: string;
+  manifestDate: Date;
+  totalConsignments: number;
+  status: ManifestStatus;
+  consignments: {
+    consignmentId: string;
+    orderReference: string;
+    trackingNumber: string;
+  }[];
+}

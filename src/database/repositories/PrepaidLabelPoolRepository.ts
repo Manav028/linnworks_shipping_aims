@@ -40,18 +40,16 @@ export class PrepaidLabelPoolRepository extends BaseRepository<PrepaidLabelPool>
 
   async findAvailableByOrderRef(
     orderReference: string,
-    courierServiceId: string,
     userId: string
   ): Promise<PrepaidLabelPool | null> {
     const result = await this.executeQuery<PrepaidLabelPool>(
       `SELECT * FROM prepaid_label_pool 
        WHERE order_reference = $1 
-       AND courier_service_id = $2
-       AND user_id = $3
+       AND user_id = $2
        AND label_status = 'AVAILABLE'
        AND (expiry_date IS NULL OR expiry_date > CURRENT_TIMESTAMP)
        LIMIT 1`,
-      [orderReference, courierServiceId, userId]
+      [orderReference, userId]
     );
     return result.rows[0] || null;
   }

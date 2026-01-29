@@ -6,6 +6,7 @@ export { ConsignmentRepository } from './ConsignmentRepository';
 export { SplitLabelPageRepository } from './SplitLabelPageRepository';
 export { ConfigurationRepository } from './ConfigurationRepository';
 export { CourierServiceRepository } from './CourierServiceRepository';
+export { ManifestRepository } from './ManifestRepository';
 
 import { UserRepository } from './UserRepository';
 import { BulkLabelRepository } from './BulkLabelRepository';
@@ -14,7 +15,9 @@ import { ConsignmentRepository } from './ConsignmentRepository';
 import { SplitLabelPageRepository } from './SplitLabelPageRepository';
 import { ConfigurationRepository } from './ConfigurationRepository';
 import { CourierServiceRepository } from './CourierServiceRepository';
+import { ManifestRepository } from './ManifestRepository';
 
+export const manifestRepository = new ManifestRepository();
 export const userRepository = new UserRepository();
 export const bulkLabelRepository = new BulkLabelRepository();
 export const prepaidLabelPoolRepository = new PrepaidLabelPoolRepository();

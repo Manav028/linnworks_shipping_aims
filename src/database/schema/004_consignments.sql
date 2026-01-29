@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS consignments (
     consignment_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(user_id),
-    courier_service_id UUID NOT NULL REFERENCES courier_services(courier_service_id),
+    service_unique_id UUID NOT NULL REFERENCES courier_services(service_unique_id),
     pool_label_id UUID,
     order_reference VARCHAR(100) NOT NULL,
     linnworks_order_id INT,
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS order_extended_properties (
 );
 
 CREATE INDEX IF NOT EXISTS idx_consignments_user ON consignments(user_id);
-CREATE INDEX IF NOT EXISTS idx_consignments_service ON consignments(courier_service_id);
+CREATE INDEX IF NOT EXISTS idx_consignments_service ON consignments(service_unique_id);
 CREATE INDEX IF NOT EXISTS idx_consignments_order_ref ON consignments(order_reference);
 CREATE INDEX IF NOT EXISTS idx_consignments_linnworks_id ON consignments(linnworks_order_id);
 CREATE INDEX IF NOT EXISTS idx_consignments_tracking ON consignments(lead_tracking_number);

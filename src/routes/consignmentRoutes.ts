@@ -7,5 +7,6 @@ const router = Router();
 
 router.post('/GenerateLabel',authenticate ,consignmentController.generateLabel.bind(consignmentController));
 router.post('/CancelLabel', authenticate,consignmentController.cancelLabel.bind(consignmentController));
+router.post('/Quote',authenticate ,consignmentController.getQuote.bind(consignmentController));
 
 export default router;

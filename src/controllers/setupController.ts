@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { userRepository } from "../database/repositories";
-import { configurationRepository , courierServiceRepository } from "../database/repositories/";
+import { configurationRepository, courierServiceRepository } from "../database/repositories/";
 import {
   AddNewUserRequest,
   AddNewUserResponse,
@@ -17,6 +17,7 @@ import {
   ServiceProperty,
   UserAvailableServicesResponse,
 } from "../types/api.types";
+import { cache } from "joi";
 
 
 export class SetupController {
@@ -378,7 +379,7 @@ export class SetupController {
       const user = req.user;
 
       const services = await courierServiceRepository.getAllActive();
-  
+
       const userServiceIds = await courierServiceRepository.getUserAvailableServices(user.user_id);
       const filteredServices = services.filter(s => userServiceIds.includes(s.courier_service_id));
 
@@ -395,7 +396,7 @@ export class SetupController {
               let listValues: any = [];
 
               if (item.value_type === 5) {
-                
+
                 const values =
                   await courierServiceRepository.getServiceConfigItemListValues(
                     item.service_config_item_id
@@ -412,7 +413,7 @@ export class SetupController {
                 Description: item.description || "",
                 GroupName: item.group_name || "",
                 SortOrder: item.sort_order,
-                SelectedValue: "", 
+                SelectedValue: "",
                 RegExValidation: item.regex_validation || null,
                 RegExError: item.regex_error || null,
                 MustBeSpecified: item.must_be_specified,
@@ -460,6 +461,35 @@ export class SetupController {
       } as UserAvailableServicesResponse);
     }
   }
+
+  async ExtendedPropertyMapping(req: Request, res: Response): Promise<void> {
+    try {
+      res.json({
+        "Items": [
+          {
+            "PropertyTitle": "Safe Place note",
+            "PropertyName": "SafePlace1",
+            "PropertyDescription": "Safe place note for delivery",
+            "PropertyType": "ORDER"
+          },
+          {
+            "PropertyTitle": "Extended Cover flag",
+            "PropertyName": "ExtendedCover",
+            "PropertyDescription": "Some description",
+            "PropertyType": "ITEM"
+          }
+        ],
+        "IsError": false,
+        "ErrorMessage": null
+      });
+    } catch (error: any) {
+      res.json({
+        IsError: true,
+        ErrorMessage: `ExtendedPropertyMapping failed: ${error.message}`
+      })
+    }
+  }
+
 }
 
 export const setupController = new SetupController();
