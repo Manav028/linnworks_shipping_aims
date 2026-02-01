@@ -4,15 +4,13 @@ import { textExtractor } from '../utils/textExtractor';
 import { ExtractedLabelInfo, ProcessedLabel } from '../types/bulkLabel.types';
 
 export class LabelExtractionService {
-  /**
-   * Process a single label: extract text information
-   */
+  
   async processLabel(
     pdfBuffer: Buffer,
     pageNumber?: number
   ): Promise<ExtractedLabelInfo> {
     try {
-      // Extract text from PDF using worker
+  
       const text = await pdfService.extractText(pdfBuffer);
       console.log(text);
 
@@ -20,7 +18,6 @@ export class LabelExtractionService {
         console.warn(`No text extracted from page ${pageNumber || 'unknown'}`);
       }
 
-      // Extract label information
       const info = textExtractor.extractLabelInfo(text);
 
       console.log(
@@ -44,19 +41,15 @@ export class LabelExtractionService {
     }
   }
 
-  /**
-   * Process label with PNG conversion
-   */
   async processLabelWithPNG(
     pdfBuffer: Buffer,
     pageNumber?: number,
     scale?: number
   ): Promise<ProcessedLabel> {
     try {
-      // Extract text information
+
       const info = await this.processLabel(pdfBuffer, pageNumber);
 
-      // Convert to PNG
       const pngBuffer = await pdfService.convertPageToPNG(pdfBuffer, 1, scale);
 
       console.log(
