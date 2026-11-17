@@ -1,6 +1,7 @@
 import { BaseRepository } from './BaseRepository';
 import { query } from '../connection';
 import { CourierService } from '../../types/database.types';
+import { v4 as uuidv4 } from 'uuid';
 
 export class CourierServiceRepository extends BaseRepository<CourierService> {
   constructor() {
@@ -27,6 +28,24 @@ export class CourierServiceRepository extends BaseRepository<CourierService> {
     );
     return result.rows[0] || null;
   }
+
+  async create(data: {
+       name: string;
+       serviceCode: string;
+       servicetag: string;
+       servicegroup: string;
+    }): Promise<CourierService> {
+      const id = uuidv4();
+      const uniqueId = uuidv4();
+      const result = await this.executeQuery<CourierService>(
+      `INSERT INTO courier_services
+       (courier_service_id,service_unique_id,service_code,service_name,service_tag,service_group)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [id,uniqueId,data.serviceCode,data.name,data.servicetag,data.servicegroup]
+    );
+    return result.rows[0];
+    }
 
   async findByServiceCode(serviceCode: string): Promise<CourierService | null> {
     const result = await this.executeQuery<CourierService>(

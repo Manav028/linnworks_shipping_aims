@@ -1,4 +1,3 @@
-// src/services/s3Service.ts
 import {
   S3Client,
   PutObjectCommand,

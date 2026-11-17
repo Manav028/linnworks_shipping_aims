@@ -10,6 +10,7 @@ dotenv.config();
 
 const app: Application = express();
 const PORT = process.env.PORT || 3000;
+const HOST_NAME = process.env.HOST_NAME;
 
 app.use(helmet());
 app.use(cors());
@@ -36,7 +37,7 @@ const startServer = async () => {
 
     app.listen(PORT, () => {
       console.log('═══════════════════════════════════════');
-      console.log(`Server running on http://localhost:${PORT}`);
+      console.log(`Server running on http://${HOST_NAME}:${PORT}`);
       console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`Database connected`);
       console.log('═══════════════════════════════════════\n');

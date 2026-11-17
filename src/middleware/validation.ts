@@ -20,6 +20,12 @@ export const validateRequest = (schema: Joi.ObjectSchema) => {
   };
 };
 
+export const addNewCourierSchema = Joi.object({
+  name : Joi.string().required(),
+  serviceCode: Joi.string().required(),
+  servicetag: Joi.string().required(),
+  servicegroup: Joi.string().required(), 
+});
 
 export const addNewUserSchema = Joi.object({
   Email: Joi.string().email().required(),

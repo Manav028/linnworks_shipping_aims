@@ -1,4 +1,3 @@
-// src/services/labelExtractionService.ts
 import { pdfService } from './pdfService';
 import { textExtractor } from '../utils/textExtractor';
 import { ExtractedLabelInfo, ProcessedLabel } from '../types/bulkLabel.types';
@@ -7,18 +6,19 @@ export class LabelExtractionService {
   
   async processLabel(
     pdfBuffer: Buffer,
-    pageNumber?: number
+    pageNumber?: number,
+    courierServiceId?: string 
   ): Promise<ExtractedLabelInfo> {
     try {
   
       const text = await pdfService.extractText(pdfBuffer);
-      console.log(text);
+      console.log(`text: ${text}`);
 
       if (!text || text.trim().length === 0) {
         console.warn(`No text extracted from page ${pageNumber || 'unknown'}`);
       }
 
-      const info = textExtractor.extractLabelInfo(text);
+      const info = textExtractor.extractLabelInfo(text,courierServiceId);
 
       console.log(
         `Extracted - Page: ${pageNumber || 'N/A'}, Tracking: ${

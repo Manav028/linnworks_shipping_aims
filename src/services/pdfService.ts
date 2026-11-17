@@ -53,7 +53,7 @@ export class PDFService {
     // Windows: Check common installation paths
     if (process.platform === 'win32') {
       const possiblePaths = [
-        'C:\\Users\\manav\\Downloads\\Release-25.11.0-0\\poppler-25.11.0\\Library\\bin\\pdftoppm.exe',
+        'C:\\Users\\User\\Downloads\\Release-25.11.0-0\\poppler-25.11.0\\Library\\bin\\pdftoppm.exe',
         'C:\\Program Files\\poppler\\Library\\bin\\pdftoppm.exe',
         'C:\\Program Files (x86)\\poppler\\Library\\bin\\pdftoppm.exe',
         'C:\\poppler\\Library\\bin\\pdftoppm.exe',
@@ -210,7 +210,7 @@ export class PDFService {
 
       // Execute pdftoppm
       const { stdout, stderr } = await execAsync(command, {
-        maxBuffer: 50 * 1024 * 1024, // 50MB buffer for large PNGs
+        maxBuffer: 50 * 1024 * 1024,
       });
 
       if (stderr && !stderr.includes('Syntax Warning')) {

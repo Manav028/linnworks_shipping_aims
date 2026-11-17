@@ -122,7 +122,8 @@ export class BulkLabelController {
           // Extract text and get label information
           const extractedInfo = await labelExtractionService.processLabel(
             pagePDF,
-            pageNumber
+            pageNumber,
+            courierServiceId
           );
 
           // Upload PDF to S3
